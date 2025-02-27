@@ -1,0 +1,13 @@
+[project]
+name = "recipe-items"
+version = "0.1.0"
+description = "Use AI to extract recipe ingredients from recipe websites"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "httpx>=0.28.1",
+    "loguru>=0.7.3",
+    "pydantic>=2.10.6",
+    "python-dotenv>=1.0.1",
+    "typer>=0.15.2",
+]

@@ -1,0 +1,6 @@
+{
+  "scrape": true,
+  "extract": true,
+  "save": true,
+  "use_docker": false
+}
