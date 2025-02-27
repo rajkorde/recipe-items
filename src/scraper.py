@@ -8,6 +8,7 @@ from src.utils import read_from_file, write_to_file
 
 
 def scrape_and_convert_to_md(url: str) -> str:
+    logger.info("Scraping website: " + url)
     result = ""
     if flags.scrape:
         jina_url = "https://r.jina.ai/"
@@ -24,9 +25,9 @@ def scrape_and_convert_to_md(url: str) -> str:
                 f"Error scraping website: {response.status_code} - {response.text}"
             )
             result = ""
+        if flags.save:
+            write_to_file(result, "data/scraped.md")
     else:
         result = read_from_file("data/scraped.md")
 
-    if flags.scrape and flags.save:
-        write_to_file(result, "data/scraped.md")
     return result

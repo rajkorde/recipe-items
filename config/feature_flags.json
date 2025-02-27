@@ -1,5 +1,5 @@
 {
-  "scrape": true,
+  "scrape": false,
   "extract": true,
   "save": true,
   "use_docker": false

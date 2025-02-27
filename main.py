@@ -1,9 +1,10 @@
+import asyncio
 from typing import Annotated
 
 import typer
 from dotenv import load_dotenv
-from loguru import logger
 
+from src.extractor import IngredientList
 from src.feature_flags import flags
 from src.scraper import scrape_and_convert_to_md
 
@@ -22,10 +23,17 @@ def version_callback(value: bool):
 
 @app.command()
 def generate(url: Annotated[str, typer.Option(help="Recipe URL", show_default=False)]):
-    url = "https://twokooksinthekitchen.com/best-pad-thai-recipe/"
-    logger.info("Scraping website: " + url)
-    print(flags)
-    scrape_and_convert_to_md(url)
+    url = "https://natashaskitchen.com/chicken-stir-fry-recipe/"
+
+    content = scrape_and_convert_to_md(url)
+    if not content:
+        typer.echo("Could not scrape website")
+        raise typer.Exit(1)
+    recipe = asyncio.run(IngredientList().process_content(content))
+    if not recipe:
+        typer.echo("Could not extract recipe")
+        raise typer.Exit(1)
+    print(recipe)
 
 
 if __name__ == "__main__":
