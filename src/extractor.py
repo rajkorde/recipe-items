@@ -3,12 +3,15 @@ from __future__ import annotations
 import json
 import os
 
-from langchain_core.messages import SystemMessage
-from langchain_openai import ChatOpenAI
+from dotenv import load_dotenv
 from loguru import logger
 from pydantic import BaseModel, Field
+from pydantic_ai import Agent, ModelRetry
 
 from src.feature_flags import flags
+
+if not flags.use_docker:
+    assert load_dotenv()
 
 
 class Ingredient(BaseModel):
@@ -52,39 +55,25 @@ class Recipe(BaseModel):
         return s
 
 
-class IngredientList:
-    _extract_instructions = """
-        You will be given a context as a markdown file that has text extracted from a recipe website that contains the recipe, the ingredients and the number of servings.
+class RecipeContent(BaseModel):
+    markdown: str = Field(description="Recipe in markdown format")
 
-        Read the whole context and find every ingredient in the recipe, the name of the recipe and the number of servings. Ensure that you find all the ingredients!
 
-        Context: {context}
-    """
+extractor_agent = Agent(
+    "gpt-4o-mini",
+    result_type=Recipe,
+    retries=3,
+    system_prompt="""
+        You will be given a markdown file content that has text extracted from a recipe website that contains the recipe, the ingredients and the number of servings.
 
-    def __init__(self, model_name: str = "gpt-4o-mini"):
-        self.model_name = model_name
-        base_llm = ChatOpenAI(model=model_name, max_retries=3)
-        self.llm = base_llm.with_structured_output(Recipe)
+        Read the whole content and find every ingredient in the recipe, the name of the recipe and the number of servings. Ensure that you find all the ingredients!
+    """,
+)
 
-    async def process_content(self, content: str) -> Recipe | None:
-        logger.info("Extracting recipe.")
-        if flags.extract:
-            recipe = await self.llm.ainvoke(
-                [
-                    SystemMessage(
-                        content=IngredientList._extract_instructions.format(
-                            context=content
-                        )
-                    )
-                ],
-            )
 
-            if not recipe or not isinstance(recipe, Recipe) or not recipe.ingredients:
-                logger.error("Could not process recipe")
-                return None
-            if flags.save:
-                recipe.serialize(filename="data/recipe.json")
-        else:
-            recipe = Recipe.deserialize(filename="data/recipe.json")
-
-        return recipe
+@extractor_agent.result_validator
+def validate_result(recipe: Recipe | None) -> Recipe:
+    if not recipe or not recipe.ingredients:
+        logger.error(f"Failed to extract recipe: {recipe}")
+        raise ModelRetry("Failed to extract recipe")
+    return recipe

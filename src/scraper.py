@@ -8,7 +8,6 @@ from src.utils import read_from_file, write_to_file
 
 
 def scrape_and_convert_to_md(url: str) -> str:
-    logger.info("Scraping website: " + url)
     result = ""
     if flags.scrape:
         jina_url = "https://r.jina.ai/"

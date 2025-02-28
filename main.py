@@ -1,10 +1,11 @@
-import asyncio
 from typing import Annotated
 
 import typer
 from dotenv import load_dotenv
+from loguru import logger
+from pydantic_ai import UnexpectedModelBehavior
 
-from src.extractor import IngredientList
+from src.extractor import Recipe, extractor_agent
 from src.feature_flags import flags
 from src.scraper import scrape_and_convert_to_md
 
@@ -23,17 +24,36 @@ def version_callback(value: bool):
 
 @app.command()
 def generate(url: Annotated[str, typer.Option(help="Recipe URL", show_default=False)]):
-    url = "https://natashaskitchen.com/chicken-stir-fry-recipe/"
+    url = "https://twokooksinthekitchen.com/best-pad-thai-recipe/"
+    # url = "https://www.google.com"
 
+    logger.info("Scraping website: " + url)
     content = scrape_and_convert_to_md(url)
     if not content:
         typer.echo("Could not scrape website")
         raise typer.Exit(1)
-    recipe = asyncio.run(IngredientList().process_content(content))
-    if not recipe:
-        typer.echo("Could not extract recipe")
-        raise typer.Exit(1)
-    print(recipe)
+
+    logger.info("Extracting recipe.")
+    if flags.extract:
+        try:
+            result = extractor_agent.run_sync(f"Markdown:\n {content}")
+        except UnexpectedModelBehavior:
+            typer.echo("Could not extract recipe")
+            raise typer.Exit(1)
+
+        if not result or not result.data:
+            typer.echo("Could not extract recipe")
+            raise typer.Exit(1)
+        recipe = result.data
+        if not recipe or not recipe.ingredients:
+            typer.echo("Could not extract recipe")
+            raise typer.Exit(1)
+        if flags.save:
+            recipe.serialize(filename="data/recipe.json")
+    else:
+        recipe = Recipe.deserialize(filename="data/recipe.json")
+
+    typer.echo(str(recipe))
 
 
 if __name__ == "__main__":
