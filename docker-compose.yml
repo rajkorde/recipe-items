@@ -1,0 +1,14 @@
+version: "3.8"
+services:
+  app:
+    image: recipe-items:latest
+    container_name: recipe-items
+    build: .
+    ports:
+      - "2179:2179"
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+    env_file:
+      - .env
