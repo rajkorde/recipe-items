@@ -5,10 +5,9 @@ services:
     container_name: recipe-items
     build: .
     ports:
-      - "2179:2179"
-    volumes:
-      - .:/app
+      - "8000:8000"
     environment:
       - PYTHONUNBUFFERED=1
+      - PORT=8000
     env_file:
       - .env
