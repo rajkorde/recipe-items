@@ -2,5 +2,5 @@
   "scrape": true,
   "extract": true,
   "save": true,
-  "use_docker": false
+  "use_docker": true
 }
