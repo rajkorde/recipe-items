@@ -1,9 +1,13 @@
 from typing import Annotated
 
+import pandas as pd
 import typer
 from dotenv import load_dotenv
 from loguru import logger
 from pydantic_ai import UnexpectedModelBehavior
+from rich.console import Console
+from rich.table import Table
+from rich.text import Text
 
 from src.extractor import Recipe, extractor_agent
 from src.feature_flags import flags
@@ -53,7 +57,26 @@ def generate(url: Annotated[str, typer.Option(help="Recipe URL", show_default=Fa
     else:
         recipe = Recipe.deserialize(filename="data/recipe.json")
 
-    typer.echo(str(recipe))
+    # typer.echo(str(recipe))
+
+    df = pd.DataFrame([i.model_dump() for i in recipe.ingredients])
+    console = Console()
+
+    table = Table(title="Ingredients")
+    for column in df.columns:
+        table.add_column(column, justify="left")
+
+    # Add rows dynamically from DataFrame values
+    for row in df.itertuples(index=False):
+        table.add_row(*map(str, row))
+
+    console.print("\n\n")
+    console.print(Text(f"{recipe.name}", style="bold underline cyan", justify="center"))
+    console.print(
+        Text(f"Servings: {recipe.servings}", style="italic cyan", justify="center")
+    )
+    console.print("")
+    console.print(table)
 
 
 if __name__ == "__main__":
