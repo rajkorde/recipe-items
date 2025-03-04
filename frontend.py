@@ -16,7 +16,6 @@ def _():
     from src.extractor import Recipe, extractor_agent
     from src.feature_flags import flags
     from src.scraper import scrape_and_convert_to_md
-
     return (
         Recipe,
         UnexpectedModelBehavior,
@@ -54,10 +53,16 @@ def _(mo):
                 value="https://twokooksinthekitchen.com/best-pad-thai-recipe/",
             ),
         )
-        .form(show_clear_button=True, bordered=False)
+        .form(show_clear_button=False, bordered=False)
     )
     url_form
     return (url_form,)
+
+
+@app.cell
+def _(url_form):
+    url_form.value
+    return
 
 
 @app.cell
@@ -72,44 +77,46 @@ async def _(
 ):
     import asyncio
 
-    error = ""
-    with mo.status.spinner(title=f"Scraping recipe url...") as _spinner:
-        url = url_form.value["url"]
-        content = ""
-        try:
-            content = scrape_and_convert_to_md(url)
-        except Exception as e:
-            error = f"Scraping failed with: {str(e)}"
-        if not content:
-            error = "Could not scrape website."
-            _spinner.update("Could not scrape website.")
-
-        _spinner.update("Extracting Ingredients...")
-        if flags.extract:
+    if url_form.value:
+        error = ""
+        with mo.status.spinner(title=f"Scraping recipe url...") as _spinner:
+            url = url_form.value["url"]
+            content = ""
             try:
-                result = extractor_agent.run_sync(f"Markdown:\n {content}")
-            except UnexpectedModelBehavior:
-                error = f"Could not extract recipe: {str(UnexpectedModelBehavior)}"
+                content = scrape_and_convert_to_md(url)
+            except Exception as e:
+                error = f"Scraping failed with: {str(e)}"
+            if not content:
+                error = "Could not scrape website."
+                _spinner.update("Could not scrape website.")
 
-            if not result or not result.data:
-                error = "Could not extract recipe"
+            _spinner.update("Extracting Ingredients...")
+            if flags.extract:
+                result = None
+                try:
+                    result = extractor_agent.run_sync(f"Markdown:\n {content}")
+                except UnexpectedModelBehavior:
+                    error = f"Could not extract recipe: {str(UnexpectedModelBehavior)}"
 
-            recipe = result.data
-            if not recipe or not recipe.ingredients:
-                error = "Could not extract recipe"
+                if not result or not result.data:
+                    error = "Could not extract recipe"
 
-            if flags.save:
-                recipe.serialize(filename="data/recipe.json")
-        else:
-            recipe = Recipe.deserialize(filename="data/recipe.json")
+                recipe = result.data
+                if not recipe or not recipe.ingredients:
+                    error = "Could not extract recipe"
 
-        await asyncio.sleep(1)
-        _spinner.update("Done")
+                if flags.save:
+                    recipe.serialize(filename="data/recipe.json")
+            else:
+                recipe = Recipe.deserialize(filename="data/recipe.json")
+
+            await asyncio.sleep(1)
+            _spinner.update("Done")
     return asyncio, content, error, recipe, result, url
 
 
 @app.cell
-def _(error, mo, pd, recipe):
+def _(error, mo, pd, recipe, url_form):
     def get_table(recipe):
         data = pd.DataFrame([i.model_dump() for i in recipe.ingredients])
         table = mo.ui.table(
@@ -120,13 +127,16 @@ def _(error, mo, pd, recipe):
         )
         return table
 
-    if error:
-        results = mo.md(f"<span style='color:red'>**Error:** {error}</span>")
-    else:
-        title = mo.md(f"#{recipe.name}")
-        servings = mo.md(f"##Servings: {recipe.servings}")
-        item_table = get_table(recipe)
-        results = mo.vstack([title, servings, item_table])
+    results = None
+
+    if url_form.value:
+        if error:
+            results = mo.md(f"<span style='color:red'>**Error:** {error}</span>")
+        else:
+            title = mo.md(f"#{recipe.name}")
+            servings = mo.md(f"##Servings: {recipe.servings}")
+            item_table = get_table(recipe)
+            results = mo.vstack([title, servings, item_table])
 
     results
     return get_table, item_table, results, servings, title

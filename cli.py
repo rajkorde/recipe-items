@@ -28,9 +28,6 @@ def version_callback(value: bool):
 
 @app.command()
 def generate(url: Annotated[str, typer.Option(help="Recipe URL", show_default=False)]):
-    url = "https://twokooksinthekitchen.com/best-pad-thai-recipe/"
-    # url = "https://www.google.com"
-
     logger.info("Scraping website: " + url)
     content = scrape_and_convert_to_md(url)
     if not content:
@@ -39,6 +36,7 @@ def generate(url: Annotated[str, typer.Option(help="Recipe URL", show_default=Fa
 
     logger.info("Extracting recipe.")
     if flags.extract:
+        result = None
         try:
             result = extractor_agent.run_sync(f"Markdown:\n {content}")
         except UnexpectedModelBehavior:
