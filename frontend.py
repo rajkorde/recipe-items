@@ -60,12 +60,6 @@ def _(mo):
 
 
 @app.cell
-def _(url_form):
-    url_form.value
-    return
-
-
-@app.cell
 async def _(
     Recipe,
     UnexpectedModelBehavior,
